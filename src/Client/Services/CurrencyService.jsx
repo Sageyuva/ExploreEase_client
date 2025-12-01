@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, ArrowLeft, Search, MapPin, Filter, RefreshCw, ArrowLeftRight, CheckCircle } from 'lucide-react';
+import { DollarSign, ArrowLeft, Search, MapPin, Filter, RefreshCw, ArrowLeftRight, CheckCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { UserGetCurrencyApi } from '../../api/UserApi';
+import { UserGetCurrencyApi, UserBookCurrencyApi } from '../../api/UserApi';
 import { Toast } from '../../ToastUp';
 import Navbar from '../../components/Navbar';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -17,6 +17,12 @@ const CurrencyService = () => {
   const [sortBy, setSortBy] = useState('rate');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Booking Modal State
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [amountToExchange, setAmountToExchange] = useState(1);
+  const [isBooking, setIsBooking] = useState(false);
 
   const debouncedLocation = useDebounce(searchLocation, 500);
   const debouncedCurrencyType = useDebounce(searchCurrencyType, 500);
@@ -52,11 +58,99 @@ const CurrencyService = () => {
     setSortOrder('asc');
   };
 
+  const handleBookClick = (currency) => {
+    setSelectedCurrency(currency);
+    setAmountToExchange(1);
+    setShowBookingModal(true);
+  };
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCurrency) return;
+
+    setIsBooking(true);
+    try {
+      await UserBookCurrencyApi(selectedCurrency._id, amountToExchange);
+      setToast({ type: 'success', message: 'Currency reserved successfully!' });
+      setShowBookingModal(false);
+    } catch (error) {
+      console.error('Booking error:', error);
+      setToast({ 
+        type: 'error', 
+        message: error.response?.data?.message || 'Failed to reserve currency. Please try again.' 
+      });
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 py-8 px-4">
       <Navbar />
       {toast && <Toast type={toast.type} message={toast.message} duration={3000} onClose={() => setToast(null)} />}
       
+      {/* Booking Modal */}
+      {showBookingModal && selectedCurrency && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Exchange Currency</h3>
+              <button 
+                onClick={() => setShowBookingModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <h4 className="font-semibold text-lg text-green-700 mb-1">{selectedCurrency.currencyType}</h4>
+              <p className="text-gray-600 flex items-center gap-1 text-sm mb-4">
+                <MapPin className="w-4 h-4" /> {selectedCurrency.location}
+              </p>
+              
+              <div className="bg-green-50 p-4 rounded-xl space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Exchange Rate:</span>
+                  <span className="font-semibold">${selectedCurrency.rate}</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleBookingSubmit}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Amount to Exchange
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={amountToExchange}
+                  onChange={(e) => setAmountToExchange(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-xl">
+                <span className="font-semibold text-gray-700">Total Cost:</span>
+                <span className="text-2xl font-bold text-green-600">
+                  ${(selectedCurrency.rate * amountToExchange).toFixed(2)}
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isBooking}
+                className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5"
+              >
+                {isBooking ? 'Processing...' : 'Confirm Exchange'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <button
           onClick={() => navigate('/home')}
@@ -200,9 +294,11 @@ const CurrencyService = () => {
                 </div>
 
                 <button
-                  className="w-full py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-medium hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  onClick={() => handleBookClick(currency)}
+                  disabled={currency.status !== 'in stock'}
+                  className="w-full py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-medium hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Exchange Now
+                  {currency.status === 'in stock' ? 'Exchange Now' : 'Out of Stock'}
                 </button>
               </div>
             ))}

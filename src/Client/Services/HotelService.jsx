@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Hotel, ArrowLeft, Search, MapPin, Users, DollarSign, Filter, X, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { UserGetHotelsApi } from '../../api/UserApi';
+import { UserGetHotelsApi, UserBookHotelApi } from '../../api/UserApi';
 import { Toast } from '../../ToastUp';
 import Navbar from '../../components/Navbar';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -15,6 +15,12 @@ const HotelService = () => {
   const [sortBy, setSortBy] = useState('costPerNight');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Booking Modal State
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [roomsToBook, setRoomsToBook] = useState(1);
+  const [isBooking, setIsBooking] = useState(false);
 
   const debouncedLocation = useDebounce(searchLocation, 500);
 
@@ -41,11 +47,105 @@ const HotelService = () => {
     setSortOrder('asc');
   };
 
+  const handleBookClick = (hotel) => {
+    setSelectedHotel(hotel);
+    setRoomsToBook(1);
+    setShowBookingModal(true);
+  };
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedHotel) return;
+
+    setIsBooking(true);
+    try {
+      await UserBookHotelApi(selectedHotel._id, roomsToBook);
+      setToast({ type: 'success', message: 'Hotel booked successfully!' });
+      setShowBookingModal(false);
+      fetchHotels(); // Refresh to update available rooms
+    } catch (error) {
+      console.error('Booking error:', error);
+      setToast({ 
+        type: 'error', 
+        message: error.response?.data?.message || 'Failed to book hotel. Please try again.' 
+      });
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 py-8 px-4">
       <Navbar />
       {toast && <Toast type={toast.type} message={toast.message} duration={3000} onClose={() => setToast(null)} />}
       
+      {/* Booking Modal */}
+      {showBookingModal && selectedHotel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Book Hotel</h3>
+              <button 
+                onClick={() => setShowBookingModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <h4 className="font-semibold text-lg text-purple-700 mb-1">{selectedHotel.hotelName}</h4>
+              <p className="text-gray-600 flex items-center gap-1 text-sm mb-4">
+                <MapPin className="w-4 h-4" /> {selectedHotel.location}
+              </p>
+              
+              <div className="bg-purple-50 p-4 rounded-xl space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Price per night:</span>
+                  <span className="font-semibold">${selectedHotel.costPerNight}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Available Rooms:</span>
+                  <span className="font-semibold">{selectedHotel.availableRooms}</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleBookingSubmit}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Rooms
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={selectedHotel.availableRooms}
+                  value={roomsToBook}
+                  onChange={(e) => setRoomsToBook(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-xl">
+                <span className="font-semibold text-gray-700">Total Price:</span>
+                <span className="text-2xl font-bold text-purple-600">
+                  ${(selectedHotel.costPerNight * roomsToBook).toFixed(2)}
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isBooking || roomsToBook > selectedHotel.availableRooms}
+                className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5"
+              >
+                {isBooking ? 'Processing...' : 'Confirm Booking'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <button
           onClick={() => navigate('/home')}
@@ -165,9 +265,10 @@ const HotelService = () => {
                 </div>
 
                 <button
+                  onClick={() => handleBookClick(hotel)}
                   className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
-                  View Details
+                  Book Now
                 </button>
               </div>
             ))}

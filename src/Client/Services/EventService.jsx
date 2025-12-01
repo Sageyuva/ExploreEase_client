@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PartyPopper, ArrowLeft, Search, MapPin, DollarSign, Filter, RefreshCw, Calendar, Users, Clock } from 'lucide-react';
+import { PartyPopper, ArrowLeft, Search, MapPin, DollarSign, Filter, RefreshCw, Calendar, Users, Clock, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { UserGetEventsApi } from '../../api/UserApi';
+import { UserGetEventsApi, UserBookEventApi } from '../../api/UserApi';
 import { Toast } from '../../ToastUp';
 import Navbar from '../../components/Navbar';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -16,6 +16,12 @@ const EventService = () => {
   const [sortBy, setSortBy] = useState('eventDate');
   const [sortOrder, setSortOrder] = useState('asc');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Booking Modal State
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [ticketsToBook, setTicketsToBook] = useState(1);
+  const [isBooking, setIsBooking] = useState(false);
 
   const debouncedLocation = useDebounce(searchLocation, 500);
   const debouncedDate = useDebounce(searchDate, 500);
@@ -58,11 +64,109 @@ const EventService = () => {
     });
   };
 
+  const handleBookClick = (event) => {
+    setSelectedEvent(event);
+    setTicketsToBook(1);
+    setShowBookingModal(true);
+  };
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedEvent) return;
+
+    setIsBooking(true);
+    try {
+      await UserBookEventApi(selectedEvent._id, ticketsToBook);
+      setToast({ type: 'success', message: 'Event booked successfully!' });
+      setShowBookingModal(false);
+      fetchEvents(); // Refresh to update available tickets
+    } catch (error) {
+      console.error('Booking error:', error);
+      setToast({ 
+        type: 'error', 
+        message: error.response?.data?.message || 'Failed to book event. Please try again.' 
+      });
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-red-50 py-8 px-4">
       <Navbar />
       {toast && <Toast type={toast.type} message={toast.message} duration={3000} onClose={() => setToast(null)} />}
       
+      {/* Booking Modal */}
+      {showBookingModal && selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Book Event</h3>
+              <button 
+                onClick={() => setShowBookingModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <h4 className="font-semibold text-lg text-pink-700 mb-1">{selectedEvent.eventName}</h4>
+              <p className="text-gray-600 flex items-center gap-1 text-sm mb-4">
+                <MapPin className="w-4 h-4" /> {selectedEvent.location}
+              </p>
+              
+              <div className="bg-pink-50 p-4 rounded-xl space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Price per ticket:</span>
+                  <span className="font-semibold">${selectedEvent.price}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Available Tickets:</span>
+                  <span className="font-semibold">{selectedEvent.availableTickets}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Date:</span>
+                  <span className="font-semibold">{formatDate(selectedEvent.eventDate)}</span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleBookingSubmit}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Tickets
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={selectedEvent.availableTickets}
+                  value={ticketsToBook}
+                  onChange={(e) => setTicketsToBook(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-xl">
+                <span className="font-semibold text-gray-700">Total Price:</span>
+                <span className="text-2xl font-bold text-pink-600">
+                  ${(selectedEvent.price * ticketsToBook).toFixed(2)}
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isBooking || ticketsToBook > selectedEvent.availableTickets}
+                className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5"
+              >
+                {isBooking ? 'Processing...' : 'Confirm Booking'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <button
           onClick={() => navigate('/home')}
@@ -203,6 +307,7 @@ const EventService = () => {
                 </div>
 
                 <button
+                  onClick={() => handleBookClick(event)}
                   className="w-full py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-lg font-medium hover:from-pink-700 hover:to-rose-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Book Event

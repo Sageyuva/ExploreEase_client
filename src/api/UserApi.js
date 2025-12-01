@@ -1,7 +1,7 @@
 import apiClient from "./apiClient";
 import {
   UserGetFlightsUrl, UserBookFlightUrl,
-  UserGetHotelsUrl, UserGetHolidaysUrl,
+  UserGetHotelsUrl, UserBookHotelUrl, UserGetHolidaysUrl,
   UserGetShopsUrl, UserGetGuidesUrl,
   UserGetCurrencyUrl, UserGetEventsUrl,
   UserChatbotUrl
@@ -46,6 +46,15 @@ export const UserGetHotelsApi = async (location, sortBy, sortOrder) => {
   }
 };
 
+export const UserBookHotelApi = async (hotelId, roomsBooked) => {
+  try {
+    const response = await apiClient.post(UserBookHotelUrl, { hotelId, roomsBooked });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Holidays
 export const UserGetHolidaysApi = async (location, sortBy, sortOrder) => {
   try {
@@ -54,6 +63,15 @@ export const UserGetHolidaysApi = async (location, sortBy, sortOrder) => {
     if (sortBy) params.sortBy = sortBy;
     if (sortOrder) params.sortOrder = sortOrder;
     const response = await apiClient.get(UserGetHolidaysUrl, { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const UserBookHolidayApi = async (holidayId, travelers, date) => {
+  try {
+    const response = await apiClient.post(UserBookHolidayUrl, { holidayId, travelers, date });
     return response.data;
   } catch (error) {
     throw error;
@@ -90,6 +108,15 @@ export const UserGetGuidesApi = async (location, expertiseLocation, status, sort
   }
 };
 
+export const UserBookGuideApi = async (guideId, date, hours) => {
+  try {
+    const response = await apiClient.post(UserBookGuideUrl, { guideId, date, hours });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Currency
 export const UserGetCurrencyApi = async (location, currencyType, status, sortBy, sortOrder) => {
   try {
@@ -106,6 +133,15 @@ export const UserGetCurrencyApi = async (location, currencyType, status, sortBy,
   }
 };
 
+export const UserBookCurrencyApi = async (currencyId, amount) => {
+  try {
+    const response = await apiClient.post(UserBookCurrencyUrl, { currencyId, amount });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Events
 export const UserGetEventsApi = async (location, eventDate, sortBy, sortOrder) => {
   try {
@@ -115,6 +151,15 @@ export const UserGetEventsApi = async (location, eventDate, sortBy, sortOrder) =
     if (sortBy) params.sortBy = sortBy;
     if (sortOrder) params.sortOrder = sortOrder;
     const response = await apiClient.get(UserGetEventsUrl, { params });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const UserBookEventApi = async (eventId, ticketsBooked) => {
+  try {
+    const response = await apiClient.post(UserBookEventUrl, { eventId, ticketsBooked });
     return response.data;
   } catch (error) {
     throw error;

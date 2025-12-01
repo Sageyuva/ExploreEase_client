@@ -6,11 +6,16 @@ export const UserBookingsUrl = "users/bookings";
 export const UserGetFlightsUrl = "users/flights";
 export const UserBookFlightUrl = "users/flights/book";
 export const UserGetHotelsUrl = "users/hotels";
+export const UserBookHotelUrl = "users/hotels/book";
 export const UserGetHolidaysUrl = "users/holidays";
+export const UserBookHolidayUrl = "users/holidays/book";
 export const UserGetShopsUrl = "users/shops";
 export const UserGetGuidesUrl = "users/guides";
+export const UserBookGuideUrl = "users/guides/book";
 export const UserGetCurrencyUrl = "users/currency";
+export const UserBookCurrencyUrl = "users/currency/book";
 export const UserGetEventsUrl = "users/events";
+export const UserBookEventUrl = "users/events/book";
 export const UserChatbotUrl = "users/chatbot";
 
 // Admin URLs
